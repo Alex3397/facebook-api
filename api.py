@@ -30,9 +30,10 @@ def setNewEnv():
     pass
 
 def getAdsets(adAccountId,Token):
-    limit = 150
+    limit = 1
+    # contextual_bundling_spec (configuracoes de anuncio) nao funciona se usuario nao estiver na lista branca
     ad_sets = "https://graph.facebook.com/v10.0/act_" + adAccountId + "/adsets?access_token=" + Token\
-        + "&date_preset=last_year"\
+        + "&date_preset=this_year"\
         + "&fields=id,name,optimization_goal,multi_optimization_goal_weight,configured_status,effective_status,"\
         + "billing_event,bid_amount,daily_budget,campaign_id,targeting,status,start_time,end_time,asset_feed_id,"\
         + "adlabels,attribution_spec,bid_adjustments,bid_constraints,bid_info,bid_strategy,budget_remaining,"\
@@ -45,36 +46,46 @@ def getAdsets(adAccountId,Token):
         + "delivery_estimate,adcreatives,adrules_governed,asyncadrequests,targetingsentencelines"\
         + "&limit=" + str(limit)
     
-    print("Requesting GET")
+    print("Requesting GET\n")
     Request = requests.get(url=ad_sets)
+    Headers = Request.headers
     Data = Request.json()
-    print("Status: [200] OK") if str(Request) == '<Response [200]>' else print(Data['error']['message'])
+    print("Status: [200] OK\n") if str(Request) == '<Response [200]>' else print("Error:\n" + str(Data['error']['message']) + "\n")
+    parse = json.loads(Headers['x-business-use-case-usage'])[adAccountId][0]['estimated_time_to_regain_access']
+    print("Estimated time to regain acess: " + str(parse) + " minutes") if "error" in Data and 'too many calls' in Data['error']['message'] else 0
     print(Data) if "error" not in Data else 0
     
-    
-    
+    print("\nStart Crawling\n")
+    stored = []
+    i=0
+    # while 'next' in list(Data['paging'].keys()):
+    while i != 3:
+        start = time.time()
+        stored.append(Data)
+        print("Crawler Requesting GET\n")
+        Crawler = requests.get(url=Data['paging']['next'])
+        Data = Crawler.json()
+        print("Status: [200] OK\n") if str(Crawler) == '<Response [200]>' else print(Data['error']['message'])
+        print(json.dumps(Data, indent=4))
+        end = time.time()
+        elapsed = end - start
+        print("\nseconds elapsed: " + str(elapsed) + "\n")
+        time.sleep(20 - elapsed) if elapsed > 0 else 0
+        i += 1
+        pass
+
+    with open(str(os.getcwd()) + '/stored_data/adset_data.json', 'w') as outfile:
+        json.dump(stored, outfile)
+
     pass
 
 # setNewEnv()
 
-adaccountid = config('ADACCOUNT_ID')
+adaccountid = config('ADACCOUNT_ID2')
 adgroupid = config('ADGROUP_ID')
 token = config('LONGTERM_TOKEN')
 
 getAdsets(adaccountid,token)
-
-# contextual_bundling_spec nao funciona se usuario nao estiver na lista branca
-# CAMPOS ADSET:
-# id,name,optimization_goal,multi_optimization_goal_weight,configured_status,effective_status
-# billing_event,bid_amount,daily_budget,campaign,targeting,status,start_time,end_time,asset_feed_id,
-# adlabels,attribution_spec,bid_adjustments,bid_constraints,bid_info,bid_strategy,budget_remaining,
-# created_time,creative_sequence,daily_min_spend_target,ads,activities,ad_studies,copies,
-# daily_spend_cap,destination_type,frequency_control_specs,instagram_actor_id,is_dynamic_creative,
-# issues_info,learning_stage_info,lifetime_budget,lifetime_imps,lifetime_min_spend_target,
-# lifetime_spend_cap,optimization_sub_event,pacing_type,promoted_object,recommendations,
-# recurring_budget_semantics,review_feedback,rf_prediction_id,source_adset,source_adset_id,
-# time_based_ad_rotation_id_blocks,time_based_ad_rotation_intervals,updated_time,use_new_app_click,
-# delivery_estimate,adcreatives,adrules_governed,asyncadrequests,targetingsentencelines
 
 leads = "https://graph.facebook.com/v10.0/"+ adgroupid +"/leads?access_token=" + token
 ads_volume = "https://graph.facebook.com/v10.0/act_" + adaccountid + "/ads_volume?access_token=" + token
@@ -109,13 +120,6 @@ insightsFields = "account_currency,account_id,account_name,action_values,actions
     +"video_play_retention_20_to_60s_actions,video_play_retention_graph_actions,video_time_watched_actions,"\
     +"website_ctr,website_purchase_roas,wish_bid"
 
-# stored = []
-# while 'next' in list(data['paging'].keys()):
-#     stored.append(data)
-#     CrawlerUrl = requests.get(url=data['paging']['next'])
-#     data = CrawlerUrl.json()
-#     print(CrawlerUrl)
-#     print(data)
 
 # print("")
 # print("Stored data:")
