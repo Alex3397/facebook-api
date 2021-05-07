@@ -23,28 +23,17 @@ def setNewEnv():
     longTokenData = longTokenRequest.json()
     longTermToken = longTokenData['access_token']
 
-    print("Status: [200] OK") if str(longTokenRequest) == '<Response [200]>' else print(longTokenData['error']['message'])
+    print("New token succesfully requested") if str(longTokenRequest) == '<Response [200]>' else print(longTokenData['error']['message'])
+    print("Changing Enviroment variables\n")
 
     changeEnv('SHORT_TOKEN',longTermToken)
     changeEnv('LONGTERM_TOKEN',longTermToken)
     pass
 
-def getAdsets(adAccountId,Token):
-    limit = 1
+def getAdsets(adAccountId,Token,limit=20,page_limit=3):
     # contextual_bundling_spec (configuracoes de anuncio) nao funciona se usuario nao estiver na lista branca
     ad_sets = "https://graph.facebook.com/v10.0/act_" + adAccountId + "/adsets?access_token=" + Token\
-        + "&date_preset=this_year"\
-        + "&fields=id,name,optimization_goal,multi_optimization_goal_weight,configured_status,effective_status,"\
-        + "billing_event,bid_amount,daily_budget,campaign_id,targeting,status,start_time,end_time,asset_feed_id,"\
-        + "adlabels,attribution_spec,bid_adjustments,bid_constraints,bid_info,bid_strategy,budget_remaining,"\
-        + "created_time,creative_sequence,daily_min_spend_target,ads,activities,ad_studies,copies,"\
-        + "daily_spend_cap,destination_type,frequency_control_specs,instagram_actor_id,is_dynamic_creative,"\
-        + "issues_info,learning_stage_info,lifetime_budget,lifetime_imps,lifetime_min_spend_target,"\
-        + "lifetime_spend_cap,optimization_sub_event,pacing_type,promoted_object,recommendations,"\
-        + "recurring_budget_semantics,review_feedback,rf_prediction_id,source_adset,source_adset_id,"\
-        + "time_based_ad_rotation_id_blocks,time_based_ad_rotation_intervals,updated_time,use_new_app_click,"\
-        + "delivery_estimate,adcreatives,adrules_governed,asyncadrequests,targetingsentencelines"\
-        + "&limit=" + str(limit)
+        + "&date_preset=this_year" + "&fields=" + config('ADSET_FIELDS') + "&limit=" + str(limit)
     
     print("Requesting GET\n")
     Request = requests.get(url=ad_sets)
@@ -58,8 +47,7 @@ def getAdsets(adAccountId,Token):
     print("\nStart Crawling\n")
     stored = []
     i=0
-    # while 'next' in list(Data['paging'].keys()):
-    while i != 3:
+    while i != page_limit:
         start = time.time()
         stored.append(Data)
         print("Crawler Requesting GET\n")
@@ -74,60 +62,61 @@ def getAdsets(adAccountId,Token):
         i += 1
         pass
 
-    with open(str(os.getcwd()) + '/stored_data/adset_data.json', 'w') as outfile:
+    print("Storing Adsets\n")
+    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_adset_data.json', 'w') as outfile:
         json.dump(stored, outfile)
+    print("Adsets Stored")
+    pass
 
+def getInsights(adAccountId):
+    # Usuario precisa estar na lista branca para acessar impressions_dummy
+    insightsFields = config('INSIGHTS_FIELDS')
+    adset = open(os.getcwd() + '/stored_data/' + str(adAccountId) + '_adset_data.json')
+    data = json.load(adset)
+    adset_id = data[0]['data'][0]['id']
+    insights = "https://graph.facebook.com/v10.0/" + adset_id + "/insights?data_preset=this_year&fields="\
+        + insightsFields + "&access_token=" + token +"&limit=1"
+
+    insightsRequest = requests.get(url=insights)
+    insightsHeaders = insightsRequest.headers
+    insightsData = insightsRequest.json()
+    print("Request Status: " + str(insightsRequest))
+    print("\nRequest Headers:\n" + str(insightsHeaders))
+    print("\nRequest Data:\n" + str(insightsData)) if str(insightsRequest) == '<Response [200]>' else print("\nError message:\n" + insightsData['error']['message'])
+    
+    print("Storing Insights\n")
+    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_adset_insights_data.json', 'w') as outfile:
+        json.dump(insightsData, outfile)
+    print("Insights Stored")
     pass
 
 # setNewEnv()
 
-adaccountid = config('ADACCOUNT_ID2')
-adgroupid = config('ADGROUP_ID')
+adAccountId = config('ADACCOUNT_ID2')
+adGroupId = config('ADGROUP_ID')
 token = config('LONGTERM_TOKEN')
 
-getAdsets(adaccountid,token)
+account = "https://graph.facebook.com/v10.0/act_" + adAccountId\
+    + "/campaigns?effective_status=['ACTIVE']&date_preset=this_year"\
+    + "&fields=id,name,objective,insights,total_count,adlabels,bid_strategy,buying_type,daily_budget,is_skadnetwork_attribution,iterative_split_test_configs,lifetime_budget,promoted_object,source_campaign_id,special_ad_categories,special_ad_category_country,spend_cap,start_time,status,stop_time,topline_id,upstream_events"\
+    + "&access_token=" + token
 
-leads = "https://graph.facebook.com/v10.0/"+ adgroupid +"/leads?access_token=" + token
-ads_volume = "https://graph.facebook.com/v10.0/act_" + adaccountid + "/ads_volume?access_token=" + token
-insights = "https://graph.facebook.com/v10.0/" + "/insights"
-insightsFields = "account_currency,account_id,account_name,action_values,actions,activity_recency"\
-    +",ad_click_actions,ad_format_asset,ad_id,ad_impression_actions,ad_name,adset_id,adset_name,age_targeting"\
-    +",attribution_setting,auction_bid,auction_competitiveness,auction_max_competitor_bid,body_asset,buying_type"\
-    +",campaign_id,campaign_name,canvas_avg_view_percent,canvas_avg_view_time,catalog_segment_actions"\
-    +",catalog_segment_value,catalog_segment_value_mobile_purchase_roas,catalog_segment_value_omni_purchase_roas"\
-    +",catalog_segment_value_website_purchase_roas,clicks,comparison_node,conversion_values,conversions"\
-    +",converted_product_quantity,converted_product_value,cost_per_15_sec_video_view"\
-    +",cost_per_2_sec_continuous_video_view,cost_per_action_type,cost_per_ad_click,cost_per_conversion"\
-    +",cost_per_dda_countby_convs,cost_per_inline_link_click,cost_per_inline_post_engagement"\
-    +",cost_per_one_thousand_ad_impression,cost_per_outbound_click,cost_per_store_visit_action,cost_per_thruplay"\
-    +",cost_per_unique_action_type,cost_per_unique_click,cost_per_unique_conversion,cost_per_unique_inline_link_click"\
-    +",cost_per_unique_outbound_click,country,cpc,cpm,cpp,created_time,ctr,date_start,date_stop,dda_countby_convs,"\
-    +"dda_results,description_asset,device_platform,dma,estimated_ad_recall_rate_lower_bound,"\
-    +"estimated_ad_recall_rate_upper_bound,estimated_ad_recallers_lower_bound,estimated_ad_recallers_upper_bound,"\
-    +"frequency,frequency_value,full_view_impressions,full_view_reach,gender_targeting,"\
-    +"hourly_stats_aggregated_by_advertiser_time_zone,hourly_stats_aggregated_by_audience_time_zone,image_asset,"\
-    +"impression_device,impressions,impressions_dummy,inline_link_click_ctr,inline_link_clicks,inline_post_engagement,"\
-    +"instant_experience_clicks_to_open,instant_experience_clicks_to_start,instant_experience_outbound_clicks,"\
-    +"interactive_component_tap,labels,location,media_asset,mobile_app_purchase_roas,objective,optimization_goal,"\
-    +"outbound_clicks,outbound_clicks_ctr,place_page_id,place_page_name,platform_position,product_id,"\
-    +"publisher_platform,purchase_roas,qualifying_question_qualify_answer_rate,reach,rule_asset,social_spend,"\
-    +"spend,store_visit_actions,title_asset,unique_actions,unique_clicks,unique_conversions,unique_ctr,"\
-    +"unique_inline_link_click_ctr,unique_inline_link_clicks,unique_link_clicks_ctr,unique_outbound_clicks,"\
-    +"unique_outbound_clicks_ctr,unique_video_view_15_sec,updated_time,video_15_sec_watched_actions,"\
-    +"video_30_sec_watched_actions,video_asset,video_avg_time_watched_actions,video_continuous_2_sec_watched_actions,"\
-    +"video_p100_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,"\
-    +"video_p95_watched_actions,video_play_actions,video_play_curve_actions,video_play_retention_0_to_15s_actions,"\
-    +"video_play_retention_20_to_60s_actions,video_play_retention_graph_actions,video_time_watched_actions,"\
-    +"website_ctr,website_purchase_roas,wish_bid"
+accountRequest = requests.get(url=account)
+print(accountRequest)
+acdata = accountRequest.json()
+print(acdata)
 
+campaingFields = config('CAMPAING_FIELDS')
+campaing_id = config('CAMPAING_ID')
+campaings = "https://graph.facebook.com/v10.0/"+ campaing_id\
+    + "/?date_preset=this_year&fields=" + campaingFields + "&access_token=" + token
 
-# print("")
-# print("Stored data:")
-# print("")
-# print(stored)
-# for i in data:
-#     print(i)
-#     for a in data[i]:
-#         print(a)
-#         if i == "data":
-#             print(a['id'])
+# getrequest = requests.get(url=campaings)
+# print(getrequest)
+# data = getrequest.json()
+# print(data)
+
+# getAdsets(config('ADACCOUNT_ID2'),config('LONGTERM_TOKEN'),1,3)
+# getInsights(adAccountId)
+
+# leads = "https://graph.facebook.com/v10.0/"+ adGroupId +"/leads?access_token=" + token
