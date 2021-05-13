@@ -23,14 +23,36 @@ def setNewEnv():
     longTokenData = longTokenRequest.json()
     longTermToken = longTokenData['access_token']
 
-    print("New token succesfully requested") if str(longTokenRequest) == '<Response [200]>' else print(longTokenData['error']['message'])
-    print("Changing Enviroment variables\n")
+    print("\nNew token succesfully requested\n") if str(longTokenRequest) == '<Response [200]>' else print("\nCould not request new token\nError:\n"+str(longTokenData['error']['message']))
+    print("Changing Enviroment variables") if str(longTokenRequest) == '<Response [200]>' else 0
 
-    changeEnv('SHORT_TOKEN',longTermToken)
-    changeEnv('LONGTERM_TOKEN',longTermToken)
+    changeEnv('SHORT_TOKEN',longTermToken) if str(longTokenRequest) == '<Response [200]>' else 0
+    changeEnv('LONGTERM_TOKEN',longTermToken) if str(longTokenRequest) == '<Response [200]>' else 0
     pass
 
-def getActiveAdsets(adAccountId,Token=config('LONGTERM_TOKEN'),limit=20,page_limit=3):
+def getActiveCampaings(adAccountId,token=config('LONGTERM_TOKEN')):
+    accountCampaingsFields = str(config('ACCOUNT_CAMPAING_FIELDS'))
+    accountCampaings = "https://graph.facebook.com/v10.0/act_" + adAccountId\
+        + "/campaigns?effective_status=['ACTIVE']&date_preset=this_year"\
+        + "&fields=" + accountCampaingsFields\
+        + "&limit=5000"\
+        + "&access_token=" + token
+
+    accountCampaingRequest = requests.get(url=accountCampaings)
+    accountCampaingHeaders = accountCampaingRequest.headers
+    accountCampaingData = accountCampaingRequest.json()
+
+    print("Request Status: " + str(accountCampaingRequest))
+    print("\nRequest Headers:\n" + str(accountCampaingHeaders))
+    print("\nRequest Data:\n" + str(accountCampaingData)) if str(accountCampaingRequest) == '<Response [200]>' else print("\nError message:\n" + accountCampaingData['error']['message'])
+
+    print("Storing Campaings Data\n")
+    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_campaings_data.json', 'w') as outfile:
+        json.dump(accountCampaingData, outfile)
+    print("Campaings Data Stored")
+    pass
+
+def getActiveAdsets(adAccountId,Token=config('LONGTERM_TOKEN'),limit=25,page_limit=3):
     # contextual_bundling_spec (configuracoes de anuncio) nao funciona se usuario nao estiver na lista branca
     adSetFields = config('ADSET_FIELDS')
     adSets = "https://graph.facebook.com/v10.0/act_" + adAccountId + "/adsets"\
@@ -41,28 +63,38 @@ def getActiveAdsets(adAccountId,Token=config('LONGTERM_TOKEN'),limit=20,page_lim
         + "&fields=" + adSetFields
     
     print("Requesting GET\n")
+    start = time.time()
     Request = requests.get(url=adSets)
+    end = time.time()
+    elapsed = end - start
     Headers = Request.headers
     Data = Request.json()
-    parse = json.loads(Headers['x-business-use-case-usage'])[adAccountId][0]['estimated_time_to_regain_access'] if "error" not in Data else 0
+    parse = json.loads(Headers['x-business-use-case-usage'])[adAccountId][0]['estimated_time_to_regain_access'] if "error" in Data else 0
+
+    print("Request done in: " + str(elapsed) + " seconds\n")
     print("Status: [200] OK\n") if str(Request) == '<Response [200]>' else print("Error:\n" + str(Data['error']['message']) + "\n")
     print("Estimated time to regain acess: " + str(parse) + " minutes") if "error" in Data and 'too many calls' in Data['error']['message'] else 0
     print(Data) if "error" not in Data else 0
+    time.sleep(20 - elapsed) if elapsed > 0 else 0
     
     stored = []
     print("\nStart Crawling\n")
 
     while 'next' in Data['paging']:
         stored.append(Data)
-        print("Crawler Requesting GET\n")
-        start = time.time()
-        Crawler = requests.get(url=Data['paging']['next'])
-        end = time.time()
-        elapsed = end - start
+        print("\nCrawler Requesting GET\n")
+
+        start = time.time();Crawler = requests.get(url=Data['paging']['next']);end = time.time()
+        Headers = Crawler.headers
         Data = Crawler.json()
+        parse = json.loads(Headers['x-business-use-case-usage'])[adAccountId][0]['estimated_time_to_regain_access'] if "error" not in Data else 0
+
         print("Request done in: " + str(elapsed) + " seconds\n")
-        print("Status: [200] OK\n") if str(Crawler) == '<Response [200]>' else print(Data['error']['message'])
+        print("Status: [200] OK\n") if str(Crawler) == '<Response [200]>' else print("Error:\n" + str(Data['error']['message']) + "\n")
+        print("Estimated time to regain acess: " + str(parse) + " minutes") if "error" in Data and 'too many calls' in Data['error']['message'] else 0
         print(Data) if "error" not in Data else 0
+
+        elapsed = end - start
         time.sleep(20 - elapsed) if elapsed > 0 else 0
         pass
 
@@ -79,12 +111,13 @@ def getInsights(adAccountId, token=config('LONGTERM_TOKEN')):
     data = json.load(adset)
     adset_id = data[0]['data'][0]['id']
     insights = "https://graph.facebook.com/v10.0/" + adset_id\
-        + "/insights?data_preset=this_year&limit=1&fields=" + insightsFields\
+        + "/insights?data_preset=this_year&fields=" + insightsFields\
         + "&access_token=" + token
 
     insightsRequest = requests.get(url=insights)
     insightsHeaders = insightsRequest.headers
     insightsData = insightsRequest.json()
+
     print("Request Status: " + str(insightsRequest))
     print("\nRequest Headers:\n" + str(insightsHeaders))
     print("\nRequest Data:\n" + str(insightsData)) if str(insightsRequest) == '<Response [200]>' else print("\nError message:\n" + insightsData['error']['message'])
@@ -93,25 +126,4 @@ def getInsights(adAccountId, token=config('LONGTERM_TOKEN')):
     with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_adset_insights_data.json', 'w') as outfile:
         json.dump(insightsData, outfile)
     print("Insights Stored")
-    pass
-
-def getCampaings(adAccountId,token=config('LONGTERM_TOKEN')):
-    accountCampaingsFields = str(config('ACCOUNT_CAMPAING_FIELDS'))
-    accountCampaings = "https://graph.facebook.com/v10.0/act_" + adAccountId\
-        + "/campaigns?effective_status=['ACTIVE']&date_preset=this_year"\
-        + "&fields=" + accountCampaingsFields\
-        + "&limit=5000"\
-        + "&access_token=" + token
-
-    accountCampaingRequest = requests.get(url=accountCampaings)
-    accountCampaingHeaders = accountCampaingRequest.headers
-    accountCampaingData = accountCampaingRequest.json()
-    print("Request Status: " + str(accountCampaingRequest))
-    print("\nRequest Headers:\n" + str(accountCampaingHeaders))
-    print("\nRequest Data:\n" + str(accountCampaingData)) if str(accountCampaingRequest) == '<Response [200]>' else print("\nError message:\n" + accountCampaingData['error']['message'])
-
-    print("Storing Campaings Data\n")
-    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_campaings_data.json', 'w') as outfile:
-        json.dump(accountCampaingData, outfile)
-    print("Campaings Data Stored")
     pass
