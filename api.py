@@ -10,6 +10,15 @@ def changeEnv(Env,Token):
     print("Changed " + Env)
     pass
 
+def storeData(adAccountId,data,fileName):
+    print("Storing Insights\n")
+
+    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + str(fileName) + '.json', 'w') as outfile:
+        json.dump(data, outfile)
+
+    print("Insights Stored")
+    pass
+
 def setNewEnv():
     shortToken = config('SHORT_TOKEN')
     longTermURL = config('LONGTERM_URL')
@@ -30,6 +39,32 @@ def setNewEnv():
     changeEnv('LONGTERM_TOKEN',longTermToken) if str(longTokenRequest) == '<Response [200]>' else 0
     pass
 
+def Crawl(storeFrame,adAccountId,Data,requestCount=1):
+    print("\nStarting Crawl\n")
+    requestCount = requestCount
+
+    while 'next' in Data['paging']:
+        storeFrame.append(Data)
+        print("\nRequesting Crawler GET\n")
+
+        start = time.time();Crawler = requests.get(url=Data['paging']['next']);end = time.time()
+        elapsed = end - start
+        Headers = Crawler.headers
+        Data = Crawler.json()
+        parse = json.loads(Headers['x-business-use-case-usage'])[adAccountId][0]['estimated_time_to_regain_access'] if "error" not in Data else 0
+
+        print("Request done in: " + str(elapsed) + " seconds\n")
+        print("Status: [200] OK\n") if str(Crawler) == '<Response [200]>' else print("Error:\n" + str(Data['error']['message']) + "\n")
+        print("Estimated time to regain acess: " + str(parse) + " minutes") if "error" in Data and 'too many calls' in Data['error']['message'] else 0
+        print(Data) if "error" not in Data else 0
+
+        requestCount += 1
+        time.sleep(20 - elapsed) if elapsed > 0 else 0
+        pass
+
+    print("\nTotal Request Count: " + str(requestCount) +"\n")
+    pass
+
 def getActiveCampaings(adAccountId,token=config('LONGTERM_TOKEN')):
     accountCampaingsFields = str(config('ACCOUNT_CAMPAING_FIELDS'))
     accountCampaings = "https://graph.facebook.com/v10.0/act_" + adAccountId\
@@ -46,13 +81,10 @@ def getActiveCampaings(adAccountId,token=config('LONGTERM_TOKEN')):
     print("\nRequest Headers:\n" + str(accountCampaingHeaders))
     print("\nRequest Data:\n" + str(accountCampaingData)) if str(accountCampaingRequest) == '<Response [200]>' else print("\nError message:\n" + accountCampaingData['error']['message'])
 
-    print("Storing Campaings Data\n")
-    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_campaings_data.json', 'w') as outfile:
-        json.dump(accountCampaingData, outfile)
-    print("Campaings Data Stored")
+    storeData(adAccountId,accountCampaingData,'_campaings_data')
     pass
 
-def getActiveAdsets(adAccountId,Token=config('LONGTERM_TOKEN'),limit=25,page_limit=3):
+def getActiveAdsets(adAccountId,Token=config('LONGTERM_TOKEN'),limit=25):
     # contextual_bundling_spec (configuracoes de anuncio) nao funciona se usuario nao estiver na lista branca
     adSetFields = config('ADSET_FIELDS')
     adSets = "https://graph.facebook.com/v10.0/act_" + adAccountId + "/adsets"\
@@ -78,31 +110,10 @@ def getActiveAdsets(adAccountId,Token=config('LONGTERM_TOKEN'),limit=25,page_lim
     time.sleep(20 - elapsed) if elapsed > 0 else 0
     
     stored = []
-    print("\nStart Crawling\n")
-
-    while 'next' in Data['paging']:
-        stored.append(Data)
-        print("\nCrawler Requesting GET\n")
-
-        start = time.time();Crawler = requests.get(url=Data['paging']['next']);end = time.time()
-        Headers = Crawler.headers
-        Data = Crawler.json()
-        parse = json.loads(Headers['x-business-use-case-usage'])[adAccountId][0]['estimated_time_to_regain_access'] if "error" not in Data else 0
-
-        print("Request done in: " + str(elapsed) + " seconds\n")
-        print("Status: [200] OK\n") if str(Crawler) == '<Response [200]>' else print("Error:\n" + str(Data['error']['message']) + "\n")
-        print("Estimated time to regain acess: " + str(parse) + " minutes") if "error" in Data and 'too many calls' in Data['error']['message'] else 0
-        print(Data) if "error" not in Data else 0
-
-        elapsed = end - start
-        time.sleep(20 - elapsed) if elapsed > 0 else 0
-        pass
-
-    print("Storing Adsets\n")
-    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_adset_data.json', 'w') as outfile:
-        json.dump(stored, outfile)
-    print("Adsets Stored")
+    Crawl(stored,adAccountId,Data)
+    storeData(adAccountId,stored,'_adset_data')
     pass
+
 
 def getInsights(adAccountId, token=config('LONGTERM_TOKEN')):
     # Usuario precisa estar na lista branca para acessar impressions_dummy
@@ -122,8 +133,6 @@ def getInsights(adAccountId, token=config('LONGTERM_TOKEN')):
     print("\nRequest Headers:\n" + str(insightsHeaders))
     print("\nRequest Data:\n" + str(insightsData)) if str(insightsRequest) == '<Response [200]>' else print("\nError message:\n" + insightsData['error']['message'])
     
-    print("Storing Insights\n")
-    with open(str(os.getcwd()) + '/stored_data/' + str(adAccountId) + '_adset_insights_data.json', 'w') as outfile:
-        json.dump(insightsData, outfile)
-    print("Insights Stored")
+    storeData(adAccountId,insightsData,'_adset_insights_data')
     pass
+
