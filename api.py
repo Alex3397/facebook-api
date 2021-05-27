@@ -68,6 +68,28 @@ def Crawl(storeFrame,adAccountId,Data,request_count=1):
     print("\nTotal Crawl Request Count: " + str(request_count) +"\n")
     pass
 
+def getAllCampaings(adAccountId,token=config('LONGTERM_TOKEN'),request_count=0):
+    request_count = request_count
+    accountCampaingsFields = str(config('ACCOUNT_CAMPAING_FIELDS'))
+    accountCampaings = "https://graph.facebook.com/v10.0/act_" + adAccountId\
+        + "/campaigns?date_preset=this_year"\
+        + "&fields=" + accountCampaingsFields\
+        + "&access_token=" + token
+
+    accountCampaingRequest = requests.get(url=accountCampaings)
+    accountCampaingHeaders = accountCampaingRequest.headers
+    Data = accountCampaingRequest.json()
+    request_count += 1
+
+    print("Request Status: " + str(accountCampaingRequest))
+    print("\nRequest Headers:\n" + str(accountCampaingHeaders))
+    print("\nRequest Data:\n" + str(Data)) if str(accountCampaingRequest) == '<Response [200]>' else print("\nError message:\n" + Data['error']['message'])
+
+    storeFrame = []
+    Crawl(storeFrame,adAccountId,Data)
+    storeData(adAccountId,storeFrame,'_all_campaings_data')
+    pass
+
 def getActiveCampaings(adAccountId,token=config('LONGTERM_TOKEN'),request_count=0):
     request_count = request_count
     accountCampaingsFields = str(config('ACCOUNT_CAMPAING_FIELDS'))
