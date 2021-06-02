@@ -143,9 +143,9 @@ def getActiveAdsets(adAccountId,Token=config('LONGTERM_TOKEN'),limit=25,request_
     storeData(adAccountId,storeFrame,'_all_adset_data')
     pass
 
-def getInsights(adAccountId, token=config('LONGTERM_TOKEN'),from_campaing=True,base_dir='/stored_data/',file_name='_adset_data.json',request_count=0):
+def getInsights(adAccountId, token=config('LONGTERM_TOKEN'),data_from_campaing=True,base_dir='/stored_data/',file_name='_adset_data.json',request_count=0):
     # Usuario precisa estar na lista branca para acessar impressions_dummy
-    parent = "_campaing" if from_campaing else "_all"
+    parent = "_campaing" if data_from_campaing else "_all"
     request_count = request_count
     insightsFields = config('INSIGHTS_FIELDS')
     adset = open(os.getcwd() + base_dir + str(adAccountId) + parent + file_name)

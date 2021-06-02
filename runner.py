@@ -157,6 +157,9 @@ print("Base DF: ")
 print(baseDF)
 
 name = str(config('ADACCOUNT_ID2')) + "_all_campaing_data"
+# name = str(config('ADACCOUNT_ID2')) + "_adset_data"
+# name = str(config('ADACCOUNT_ID2')) + "_campaing_data"
+# name = str(config('ADACCOUNT_ID2')) + "_insights_data"
 databaseDF = pd.read_sql_table(table_name=name,con=engine,schema='public')
 print(databaseDF)
 # baseDF.to_sql(name=name,con=engine,schema='public',if_exists='replace',index=False,method='multi')
