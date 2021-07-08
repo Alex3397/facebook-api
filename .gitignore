@@ -5,6 +5,9 @@
 
 # Directories
 stored_data/
+keys/
+dist/
+build/
 
 # User-specific files
 *.rsuser
@@ -13,10 +16,11 @@ stored_data/
 *.userosscache
 *.sln.docstates
 *.env
-.env
+*.spec
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
+webautonav.py
 
 # Mono auto generated files
 mono_crash.*

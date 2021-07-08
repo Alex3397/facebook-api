@@ -231,3 +231,40 @@ def getActiveCampaingAdsets(adAccountId,token=config('LONGTERM_TOKEN'),isCampain
 
     storeData(adAccountId,CampaingAdSetsData,'_campaing_adset_data')
     pass
+
+def getCustomAudiences(adAccountId,token=config('LONGTERM_TOKEN')):
+    CustomAudiences = "https://graph.facebook.com/v10.0/act_" + str(adAccountId) + "/customaudiences"\
+        + "?access_token=" + token\
+        + "&fields=name,approximate_count"\
+        + "&limit=5000"
+
+    Request = requests.get(url=CustomAudiences)
+    Headers = Request.headers
+    Data = Request.json()
+
+    print("Status: [200] OK\n") if str(Request) == '<Response [200]>' else print("Error:\n" + str(Data['error']['message']) + "\n")
+    print(Headers)
+    print(Data) if "error" not in Data else 0
+    
+    storeData(adAccountId,Data,'_custom_audiences')
+    pass
+
+def getActiveCampaingsNames(adAccountId,token=config('LONGTERM_TOKEN'),request_count=0):
+    request_count = request_count
+    accountCampaings = "https://graph.facebook.com/v10.0/act_" + adAccountId\
+        + "/campaigns?effective_status=['ACTIVE']&date_preset=this_year"\
+        + "&fields=name"\
+        + "&limit=5000"\
+        + "&access_token=" + token
+
+    accountCampaingRequest = requests.get(url=accountCampaings)
+    accountCampaingHeaders = accountCampaingRequest.headers
+    accountCampaingData = accountCampaingRequest.json()
+    request_count += 1
+
+    print("Request Status: " + str(accountCampaingRequest))
+    print("\nRequest Headers:\n" + str(accountCampaingHeaders))
+    print("\nRequest Data:\n" + str(accountCampaingData)) if str(accountCampaingRequest) == '<Response [200]>' else print("\nError message:\n" + accountCampaingData['error']['message'])
+
+    storeData(adAccountId,accountCampaingData,'_campaings_names_data')
+    return accountCampaingData['data']
